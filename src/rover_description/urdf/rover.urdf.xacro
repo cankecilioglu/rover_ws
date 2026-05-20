@@ -1,0 +1,106 @@
+<?xml version="1.0"?>
+<robot name="rover" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ===== KİTE GÖRE PARAMETRELER (ANIM 4WD) ===== -->
+  <!-- Şasi: 25.5 x 15 cm akrilik, çift kat + motorlar arası -->
+  <xacro:property name="chassis_length" value="0.255"/>
+  <xacro:property name="chassis_width"  value="0.15"/>
+  <xacro:property name="chassis_height" value="0.06"/>
+  <xacro:property name="chassis_mass"   value="0.8"/>
+
+  <!-- Teker: 6.5 cm çap, 2.7 cm genişlik -->
+  <xacro:property name="wheel_radius" value="0.0325"/>
+  <xacro:property name="wheel_width"  value="0.027"/>
+  <xacro:property name="wheel_mass"   value="0.03"/>
+
+  <!-- Teker yerleşimi (şasi merkezinden) -->
+  <xacro:property name="wheel_offset_x" value="0.09"/>
+  <xacro:property name="wheel_offset_y" value="0.095"/>
+
+  <!-- ===== MATERYALLER ===== -->
+  <material name="acrylic_blue"><color rgba="0.2 0.4 0.8 0.85"/></material>
+  <material name="tire_black"><color rgba="0.1 0.1 0.1 1.0"/></material>
+
+  <!-- ===== INERTIA MACRO'LARI ===== -->
+  <xacro:macro name="box_inertia" params="m x y z">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia
+        ixx="${(1/12) * m * (y*y + z*z)}" ixy="0" ixz="0"
+        iyy="${(1/12) * m * (x*x + z*z)}" iyz="0"
+        izz="${(1/12) * m * (x*x + y*y)}"/>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="cylinder_inertia" params="m r h">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia
+        ixx="${(1/12) * m * (3*r*r + h*h)}" ixy="0" ixz="0"
+        iyy="${(1/2) * m * r*r}"            iyz="0"
+        izz="${(1/12) * m * (3*r*r + h*h)}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- ===== FRAME'LER ===== -->
+  <link name="base_footprint"/>
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+      </geometry>
+      <material name="acrylic_blue"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+      </geometry>
+    </collision>
+    <xacro:box_inertia m="${chassis_mass}"
+                       x="${chassis_length}"
+                       y="${chassis_width}"
+                       z="${chassis_height}"/>
+  </link>
+
+  <joint name="base_footprint_to_base_link" type="fixed">
+    <parent link="base_footprint"/>
+    <child  link="base_link"/>
+    <origin xyz="0 0 ${wheel_radius + chassis_height/2}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===== TEKER MACRO ===== -->
+  <xacro:macro name="wheel" params="prefix x_offset y_offset">
+    <link name="${prefix}_wheel">
+      <visual>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+        <material name="tire_black"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+      </collision>
+      <xacro:cylinder_inertia m="${wheel_mass}"
+                              r="${wheel_radius}"
+                              h="${wheel_width}"/>
+    </link>
+
+    <joint name="${prefix}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child  link="${prefix}_wheel"/>
+      <origin xyz="${x_offset} ${y_offset} ${-chassis_height/2}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:wheel prefix="front_left"  x_offset="${ wheel_offset_x}" y_offset="${ wheel_offset_y}"/>
+  <xacro:wheel prefix="front_right" x_offset="${ wheel_offset_x}" y_offset="${-wheel_offset_y}"/>
+  <xacro:wheel prefix="rear_left"   x_offset="${-wheel_offset_x}" y_offset="${ wheel_offset_y}"/>
+  <xacro:wheel prefix="rear_right"  x_offset="${-wheel_offset_x}" y_offset="${-wheel_offset_y}"/>
+
+</robot>
