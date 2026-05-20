@@ -1,5 +1,6 @@
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, RegisterEventHandler
+from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -47,9 +48,47 @@ def generate_launch_description():
         ],
         output='screen',
     )
+    clock_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'],
+        output='screen',
+    )
+
+    joint_state_broadcaster_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['joint_state_broadcaster',
+                   '--controller-manager', '/controller_manager'],
+    )
+
+    diff_drive_controller_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['diff_drive_controller',
+                   '--controller-manager', '/controller_manager'],
+    )
+
+    # Sıralama: rover spawn olduktan sonra JSB, JSB başladıktan sonra diff_drive
+    delay_jsb = RegisterEventHandler(
+        event_handler=OnProcessExit(
+            target_action=spawn,
+            on_exit=[joint_state_broadcaster_spawner],
+        )
+    )
+
+    delay_diff_drive = RegisterEventHandler(
+        event_handler=OnProcessExit(
+            target_action=joint_state_broadcaster_spawner,
+            on_exit=[diff_drive_controller_spawner],
+        )
+    )
 
     return LaunchDescription([
         gz_sim,
         robot_state_publisher,
         spawn,
+        delay_jsb,
+        delay_diff_drive,
+        clock_bridge,
     ])
