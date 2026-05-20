@@ -11,6 +11,8 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     pkg_rover_description = FindPackageShare('rover_description')
     pkg_ros_gz_sim = FindPackageShare('ros_gz_sim')
+    pkg_rover_bringup = FindPackageShare('rover_bringup')
+    world_file = PathJoinSubstitution([pkg_rover_bringup, 'worlds', 'sensor_world.sdf'])
 
     xacro_file = PathJoinSubstitution([
         pkg_rover_description, 'urdf', 'rover.urdf.xacro'
@@ -28,7 +30,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource([
             pkg_ros_gz_sim, '/launch/gz_sim.launch.py'
         ]),
-        launch_arguments={'gz_args': '-v 4 -r empty.sdf'}.items()
+        launch_arguments={'gz_args': ['-v 4 -r ', world_file]}.items()
     )
 
     robot_state_publisher = Node(
@@ -48,12 +50,18 @@ def generate_launch_description():
         ],
         output='screen',
     )
-    clock_bridge = Node(
-        package='ros_gz_bridge',
-        executable='parameter_bridge',
-        arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'],
-        output='screen',
-    )
+    gz_bridge = Node(
+            package='ros_gz_bridge',
+            executable='parameter_bridge',
+            arguments=[
+                '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
+                '/imu@sensor_msgs/msg/Imu[gz.msgs.IMU',
+                '/camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
+                '/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
+                '/gps@sensor_msgs/msg/NavSatFix[gz.msgs.NavSat',
+            ],
+            output='screen',
+        )
 
     joint_state_broadcaster_spawner = Node(
         package='controller_manager',
@@ -90,5 +98,5 @@ def generate_launch_description():
         spawn,
         delay_jsb,
         delay_diff_drive,
-        clock_bridge,
+        gz_bridge, 
     ])

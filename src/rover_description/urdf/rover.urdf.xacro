@@ -151,4 +151,145 @@
       <parameters>$(find rover_control)/config/controllers.yaml</parameters>
     </plugin>
   </gazebo>
+  <!-- ===== IMU LINK ===== -->
+  <link name="imu_link">
+    <inertial>
+      <mass value="0.001"/>
+      <inertia ixx="1e-9" ixy="0" ixz="0" iyy="1e-9" iyz="0" izz="1e-9"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <box size="0.02 0.02 0.005"/>
+      </geometry>
+      <material name="imu_red"><color rgba="0.8 0.1 0.1 1.0"/></material>
+    </visual>
+  </link>
+
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 ${chassis_height/2 + 0.005}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===== GAZEBO IMU SENSÖRÜ ===== -->
+  <gazebo reference="imu_link">
+    <sensor name="imu_sensor" type="imu">
+      <always_on>true</always_on>
+      <update_rate>100</update_rate>
+      <topic>imu</topic>
+      <gz_frame_id>imu_link</gz_frame_id>
+      <imu>
+        <angular_velocity>
+          <x><noise type="gaussian"><mean>0.0</mean><stddev>2e-4</stddev></noise></x>
+          <y><noise type="gaussian"><mean>0.0</mean><stddev>2e-4</stddev></noise></y>
+          <z><noise type="gaussian"><mean>0.0</mean><stddev>2e-4</stddev></noise></z>
+        </angular_velocity>
+        <linear_acceleration>
+          <x><noise type="gaussian"><mean>0.0</mean><stddev>1.7e-2</stddev></noise></x>
+          <y><noise type="gaussian"><mean>0.0</mean><stddev>1.7e-2</stddev></noise></y>
+          <z><noise type="gaussian"><mean>0.0</mean><stddev>1.7e-2</stddev></noise></z>
+        </linear_acceleration>
+      </imu>
+    </sensor>
+  </gazebo>
+
+  <!-- ===== KAMERA LINK (gövde frame'i) ===== -->
+  <link name="camera_link">
+    <inertial>
+      <mass value="0.001"/>
+      <inertia ixx="1e-9" ixy="0" ixz="0" iyy="1e-9" iyz="0" izz="1e-9"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <box size="0.025 0.03 0.02"/>
+      </geometry>
+      <material name="camera_grey"><color rgba="0.2 0.2 0.2 1.0"/></material>
+    </visual>
+  </link>
+
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <!-- Şasinin önüne, ortaya, hafif yukarı -->
+    <origin xyz="${chassis_length/2 - 0.015} 0 ${chassis_height/2 + 0.015}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===== KAMERA OPTİK FRAME'İ ===== -->
+  <!-- ROS gövde konvansiyonu (X ileri, Y sol, Z yukarı) ile
+       optik konvansiyon (X sağ, Y aşağı, Z ileri) arasındaki dönüşüm -->
+  <link name="camera_link_optical"/>
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_link_optical"/>
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+  </joint>
+
+  <!-- ===== GAZEBO KAMERA SENSÖRÜ ===== -->
+  <gazebo reference="camera_link">
+    <sensor name="rgb_camera" type="camera">
+      <always_on>true</always_on>
+      <update_rate>30</update_rate>
+      <visualize>true</visualize>
+      <topic>camera/image_raw</topic>
+      <gz_frame_id>camera_link_optical</gz_frame_id>
+      <camera>
+        <horizontal_fov>1.396</horizontal_fov>  <!-- ~80 derece, geniş FPV açısı -->
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.05</near>
+          <far>100</far>
+        </clip>
+      </camera>
+    </sensor>
+  </gazebo>
+  <!-- ===== GPS LINK ===== -->
+  <link name="gps_link">
+    <inertial>
+      <mass value="0.001"/>
+      <inertia ixx="1e-9" ixy="0" ixz="0" iyy="1e-9" iyz="0" izz="1e-9"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <cylinder radius="0.01" length="0.005"/>
+      </geometry>
+      <material name="gps_yellow"><color rgba="0.9 0.8 0.1 1.0"/></material>
+    </visual>
+  </link>
+
+  <joint name="gps_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="gps_link"/>
+    <!-- Şasinin üzerinde, arka kısma yakın -->
+    <origin xyz="${-chassis_length/2 + 0.04} 0 ${chassis_height/2 + 0.01}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===== GAZEBO NAVSAT SENSÖRÜ ===== -->
+  <gazebo reference="gps_link">
+    <sensor name="navsat_sensor" type="navsat">
+      <always_on>true</always_on>
+      <update_rate>10</update_rate>
+      <topic>gps</topic>
+      <gz_frame_id>gps_link</gz_frame_id>
+      <navsat>
+        <position_sensing>
+          <horizontal>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>0.00001</stddev>     <!-- ≈1m yatay noise (1e-5 derece) -->
+            </noise>
+          </horizontal>
+          <vertical>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>1.5</stddev>          <!-- 1.5m dikey, gerçek GPS tipik -->
+            </noise>
+          </vertical>
+        </position_sensing>
+      </navsat>
+    </sensor>
+  </gazebo>
 </robot>
