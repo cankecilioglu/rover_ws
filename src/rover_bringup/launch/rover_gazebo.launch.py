@@ -76,6 +76,19 @@ def generate_launch_description():
         arguments=['diff_drive_controller',
                    '--controller-manager', '/controller_manager'],
     )
+    ekf_local = Node(
+        package='robot_localization',
+        executable='ekf_node',
+        name='ekf_filter_node_local',
+        output='screen',
+        parameters=[
+            PathJoinSubstitution([
+                FindPackageShare('rover_localization'),
+                'config',
+                'ekf_local.yaml'
+            ])
+        ],
+    )
 
     # Sıralama: rover spawn olduktan sonra JSB, JSB başladıktan sonra diff_drive
     delay_jsb = RegisterEventHandler(
@@ -99,4 +112,5 @@ def generate_launch_description():
         delay_jsb,
         delay_diff_drive,
         gz_bridge, 
+        ekf_local,
     ])
