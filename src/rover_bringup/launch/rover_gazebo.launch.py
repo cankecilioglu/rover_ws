@@ -90,6 +90,48 @@ def generate_launch_description():
         ],
     )
 
+    gps_cov_relay = Node(
+        package='rover_localization',
+        executable='gps_covariance_relay.py',
+        name='gps_covariance_relay',
+        output='screen',
+    )
+
+    ekf_global = Node(
+        package='robot_localization',
+        executable='ekf_node',
+        name='ekf_filter_node_global',
+        output='screen',
+        parameters=[
+            PathJoinSubstitution([
+                FindPackageShare('rover_localization'),
+                'config',
+                'ekf_global.yaml'
+            ])
+        ],
+        remappings=[('odometry/filtered', 'odometry/filtered_map')],
+    )
+
+    navsat_transform = Node(
+        package='robot_localization',
+        executable='navsat_transform_node',
+        name='navsat_transform_node',
+        output='screen',
+        parameters=[
+            PathJoinSubstitution([
+                FindPackageShare('rover_localization'),
+                'config',
+                'navsat_transform.yaml'
+            ])
+        ],
+        remappings=[
+            ('imu', '/imu'),
+            ('gps/fix', '/gps/fix'),                 # ← relay'in çıktısı
+            ('odometry/filtered', '/odometry/filtered_map'),
+            ('odometry/gps', '/odometry/gps'),
+        ],
+    )
+
     # Sıralama: rover spawn olduktan sonra JSB, JSB başladıktan sonra diff_drive
     delay_jsb = RegisterEventHandler(
         event_handler=OnProcessExit(
@@ -113,4 +155,7 @@ def generate_launch_description():
         delay_diff_drive,
         gz_bridge, 
         ekf_local,
+        gps_cov_relay,
+        ekf_global,
+        navsat_transform,
     ])
