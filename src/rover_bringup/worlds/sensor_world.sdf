@@ -45,12 +45,18 @@
       <link name="link">
         <collision name="collision">
           <geometry>
-            <plane><normal>0 0 1</normal><size>100 100</size></plane>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <plane><normal>0 0 1</normal><size>100 100</size></plane>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
           </geometry>
           <material>
             <ambient>0.4 0.4 0.4 1</ambient>
@@ -60,6 +66,130 @@
         </visual>
       </link>
     </model>
+    <!-- 5 adet rampa/tepe (rover'ın geçip IMU okumasını oynamak için) -->
+    <model name="bump_1">
+      <static>true</static>
+      <pose>2 0 0.05 0 0 0</pose>
+      <link name="link">
+        <collision name="c">
+          <geometry>
+            <box>
+              <size>0.5 1.0 0.1</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="v">
+          <geometry>
+            <box>
+              <size>0.5 1.0 0.1</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.5 0.4 0.2 1</ambient>
+            <diffuse>0.6 0.5 0.3 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
 
+    <model name="bump_2">
+      <static>true</static>
+      <pose>4 0.5 0.075 0 0.2 0</pose>
+      <link name="link">
+        <collision name="c">
+          <geometry>
+            <box>
+              <size>0.8 1.5 0.15</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="v">
+          <geometry>
+            <box>
+              <size>0.8 1.5 0.15</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.5 0.4 0.2 1</ambient>
+            <diffuse>0.6 0.5 0.3 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="ramp_3">
+      <static>true</static>
+      <pose>-2 1 0.1 0 -0.25 0</pose>
+      <link name="link">
+        <collision name="c">
+          <geometry>
+            <box>
+              <size>1.5 1.0 0.2</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="v">
+          <geometry>
+            <box>
+              <size>1.5 1.0 0.2</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.5 0.4 0.2 1</ambient>
+            <diffuse>0.6 0.5 0.3 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="bump_4">
+      <static>true</static>
+      <pose>1 -2 0.04 0 0 0</pose>
+      <link name="link">
+        <collision name="c">
+          <geometry>
+            <box>
+              <size>0.4 0.4 0.08</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="v">
+          <geometry>
+            <box>
+              <size>0.4 0.4 0.08</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.5 0.4 0.2 1</ambient>
+            <diffuse>0.6 0.5 0.3 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="ramp_5">
+      <static>true</static>
+      <pose>-3 -1.5 0.075 0 0.15 0.5</pose>
+      <link name="link">
+        <collision name="c">
+          <geometry>
+            <box>
+              <size>1.0 0.8 0.15</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="v">
+          <geometry>
+            <box>
+              <size>1.0 0.8 0.15</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.5 0.4 0.2 1</ambient>
+            <diffuse>0.6 0.5 0.3 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
   </world>
 </sdf>

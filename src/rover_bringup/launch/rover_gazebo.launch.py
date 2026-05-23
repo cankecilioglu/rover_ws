@@ -12,8 +12,7 @@ def generate_launch_description():
     pkg_rover_description = FindPackageShare('rover_description')
     pkg_ros_gz_sim = FindPackageShare('ros_gz_sim')
     pkg_rover_bringup = FindPackageShare('rover_bringup')
-    world_file = PathJoinSubstitution([pkg_rover_bringup, 'worlds', 'sensor_world.sdf'])
-
+    world_file = PathJoinSubstitution([pkg_rover_bringup, 'worlds', 'sensor_world.sdf'])    
     xacro_file = PathJoinSubstitution([
         pkg_rover_description, 'urdf', 'rover.urdf.xacro'
     ])
@@ -46,7 +45,7 @@ def generate_launch_description():
         arguments=[
             '-topic', 'robot_description',
             '-name', 'rover',
-            '-z', '0.1',
+            '-z', '0.5',
         ],
         output='screen',
     )
