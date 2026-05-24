@@ -10,6 +10,7 @@ install(
 
 install(
   PROGRAMS scripts/gps_covariance_relay.py
+  scripts/ground_truth_tf.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

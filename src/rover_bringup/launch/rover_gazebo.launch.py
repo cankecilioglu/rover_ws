@@ -58,6 +58,10 @@ def generate_launch_description():
                 '/camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
                 '/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
                 '/gps@sensor_msgs/msg/NavSatFix[gz.msgs.NavSat',
+                '/model/rover/odometry@nav_msgs/msg/Odometry[gz.msgs.Odometry',
+            ],
+            remappings=[
+                ('/model/rover/odometry', '/odometry/ground_truth'),
             ],
             output='screen',
         )
@@ -87,6 +91,13 @@ def generate_launch_description():
                 'ekf_local.yaml'
             ])
         ],
+    )
+    ground_truth_tf = Node(
+        package='rover_localization',
+        executable='ground_truth_tf.py',
+        name='ground_truth_tf',
+        output='screen',
+        parameters=[{'use_sim_time': True}],
     )
 
     gps_cov_relay = Node(
@@ -154,6 +165,7 @@ def generate_launch_description():
         delay_diff_drive,
         gz_bridge, 
         ekf_local,
+        ground_truth_tf,
         gps_cov_relay,
         ekf_global,
         navsat_transform,

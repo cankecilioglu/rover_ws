@@ -338,4 +338,13 @@
   <xacro:wheel_friction prefix="front_right"/>
   <xacro:wheel_friction prefix="rear_left"/>
   <xacro:wheel_friction prefix="rear_right"/>
+  <!-- Gazebo ground truth odometry publisher (drift-free) -->
+  <gazebo>
+    <plugin filename="gz-sim-odometry-publisher-system" name="gz::sim::systems::OdometryPublisher">
+      <odom_frame>odom</odom_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+      <odom_publish_frequency>50</odom_publish_frequency>
+      <dimensions>3</dimensions>
+    </plugin>
+  </gazebo>
 </robot>

@@ -2,11 +2,13 @@
 """
 Proprioceptive terrain heatmap node.
 
-Aşama 6.4: polish
-- Slope normalizasyonu MAX_SLOPE_RAD = 15° (rampa cell'leri tam doyumlu)
-- Roughness IIR high-pass filter ile statik tilt'i ayırır,
-  sadece gerçek titreşim/sıçramayı yakalar
-- Grid 200×200 cell (40m × 40m alan, drift'e karşı emniyet payı)
+Aşama 6.4 polish:
+- Cell başına MAX değer (ortalama yerine) — kısa spike'lar dilüe olmaz
+- MAX_SLOPE = 25° (geniş dinamik range: hill ~46%, bump spike ~%80-100)
+- MAX_ROUGHNESS = 5.0 m/s² (bump kenar spike'larına yer)
+- Roughness: IIR high-pass (alpha=0.95) — statik tilt filtreli
+- Outlier rejection: 40° üstü slope, 10 m/s² üstü roughness noise sayılır
+- Grid 200×200 (40m × 40m), ground truth odometry kullanır
 
 Yayınlar:
 - /terrain/slope_grid       (eğim haritası, OccupancyGrid)
@@ -29,8 +31,12 @@ class TerrainHeatmapNode(Node):
     MAP_ORIGIN_Y = -MAP_EXTENT / 2
 
     # Normalizasyon (heatmap renk skalası)
-    MAX_SLOPE_RAD = math.radians(15.0)    # 15° = tam kırmızı
-    MAX_ROUGHNESS = 3.0                   # m/s² high-pass tepe değeri = tam kırmızı
+    MAX_SLOPE_RAD = math.radians(25.0)    # 25° = tam doyumlu
+    MAX_ROUGHNESS = 5.0                   # m/s² high-pass tepe değeri = tam doyumlu
+
+    # Outlier rejection (fiziksel olmayan değerleri yoksay)
+    SLOPE_OUTLIER_RAD = math.radians(40.0)   # 40° üstü → noise
+    ROUGHNESS_OUTLIER = 10.0                  # 10 m/s² üstü → noise
 
     # IIR low-pass filter (gravity projection takibi için)
     # alpha = 0.95, 100Hz IMU'da ~0.8 Hz cutoff
@@ -39,9 +45,9 @@ class TerrainHeatmapNode(Node):
     def __init__(self):
         super().__init__('terrain_heatmap_node')
 
-        # Grid arrays
-        self.slope_sum   = np.zeros((self.GRID_SIZE, self.GRID_SIZE), dtype=np.float32)
-        self.rough_sum   = np.zeros((self.GRID_SIZE, self.GRID_SIZE), dtype=np.float32)
+        # Grid arrays — her cell'de görülen MAX değer tutulur
+        self.slope_max   = np.zeros((self.GRID_SIZE, self.GRID_SIZE), dtype=np.float32)
+        self.rough_max   = np.zeros((self.GRID_SIZE, self.GRID_SIZE), dtype=np.float32)
         self.visit_count = np.zeros((self.GRID_SIZE, self.GRID_SIZE), dtype=np.int32)
 
         # En son okumalar
@@ -57,9 +63,13 @@ class TerrainHeatmapNode(Node):
         self.az_lowpass  = 9.81           # filter başlangıcı = gravity
         self.az_highpass = 0.0            # hızlı titreşim bileşeni
 
+        # Outlier sayacı (diagnostic)
+        self.slope_outliers = 0
+        self.rough_outliers = 0
+
         # Subscribers
         self.create_subscription(Imu, '/imu', self.imu_cb, 100)
-        self.create_subscription(Odometry, '/odometry/filtered', self.odom_cb, 50)
+        self.create_subscription(Odometry, '/odometry/ground_truth', self.odom_cb, 50)
 
         # Publishers — heatmap grids
         self.slope_pub = self.create_publisher(OccupancyGrid, '/terrain/slope_grid', 10)
@@ -75,8 +85,12 @@ class TerrainHeatmapNode(Node):
             f'({self.CELL_SIZE*100:.0f}cm/cell, {self.MAP_EXTENT:.0f}m × {self.MAP_EXTENT:.0f}m)'
         )
         self.get_logger().info(
-            f'Color scaling: slope max = {math.degrees(self.MAX_SLOPE_RAD):.0f}°, '
+            f'Mode: max-per-cell | Color scale: slope max = {math.degrees(self.MAX_SLOPE_RAD):.0f}°, '
             f'roughness max = {self.MAX_ROUGHNESS} m/s²'
+        )
+        self.get_logger().info(
+            f'Outlier rejection: slope > {math.degrees(self.SLOPE_OUTLIER_RAD):.0f}°, '
+            f'roughness > {self.ROUGHNESS_OUTLIER} m/s²'
         )
         self.get_logger().info(
             'Publishing: /terrain/slope_grid, /terrain/roughness_grid @ 5Hz'
@@ -128,11 +142,22 @@ class TerrainHeatmapNode(Node):
         slope = math.sqrt(self.last_pitch**2 + self.last_roll**2)
 
         # Pürüzlülük: high-pass az'nin mutlak değeri (m/s²)
-        # Statik tilt low-pass'a kaçar, sadece bump/spike kalır
         roughness = abs(self.az_highpass)
 
-        self.slope_sum[row, col]  += slope
-        self.rough_sum[row, col]  += roughness
+        # Outlier rejection — fiziksel olmayan değerleri sayma
+        if slope > self.SLOPE_OUTLIER_RAD:
+            self.slope_outliers += 1
+        else:
+            # Max-per-cell: bu hücrede gördüğümüz en büyük slope'u tut
+            if slope > self.slope_max[row, col]:
+                self.slope_max[row, col] = slope
+
+        if roughness > self.ROUGHNESS_OUTLIER:
+            self.rough_outliers += 1
+        else:
+            if roughness > self.rough_max[row, col]:
+                self.rough_max[row, col] = roughness
+
         self.visit_count[row, col] += 1
 
     def _array_to_occupancy(self, arr, max_val):
@@ -161,12 +186,9 @@ class TerrainHeatmapNode(Node):
     def publish_grids(self):
         now = self.get_clock().now().to_msg()
 
-        with np.errstate(invalid='ignore', divide='ignore'):
-            avg_slope = self.slope_sum / np.maximum(self.visit_count, 1)
-            avg_rough = self.rough_sum / np.maximum(self.visit_count, 1)
-
-        slope_data = self._array_to_occupancy(avg_slope, self.MAX_SLOPE_RAD)
-        rough_data = self._array_to_occupancy(avg_rough, self.MAX_ROUGHNESS)
+        # Max değerler doğrudan kullanılır (ortalama bölmesi yok)
+        slope_data = self._array_to_occupancy(self.slope_max, self.MAX_SLOPE_RAD)
+        rough_data = self._array_to_occupancy(self.rough_max, self.MAX_ROUGHNESS)
 
         self.slope_pub.publish(self._make_grid_msg(slope_data, now))
         self.rough_pub.publish(self._make_grid_msg(rough_data, now))
@@ -179,11 +201,8 @@ class TerrainHeatmapNode(Node):
         visited = int((self.visit_count > 0).sum())
 
         if self.visit_count.sum() > 0:
-            with np.errstate(invalid='ignore', divide='ignore'):
-                avg_slope = self.slope_sum / np.maximum(self.visit_count, 1)
-                avg_rough = self.rough_sum / np.maximum(self.visit_count, 1)
-            max_slope_deg = math.degrees(float(avg_slope.max()))
-            max_rough = float(avg_rough.max())
+            max_slope_deg = math.degrees(float(self.slope_max.max()))
+            max_rough = float(self.rough_max.max())
         else:
             max_slope_deg = 0.0
             max_rough = 0.0
@@ -193,11 +212,13 @@ class TerrainHeatmapNode(Node):
             f'pitch={math.degrees(self.last_pitch):+5.1f}° '
             f'az_hp={self.az_highpass:+5.2f} | '
             f'visited={visited}/{total_cells} | '
-            f'max: slope={max_slope_deg:4.1f}° rough={max_rough:.2f} | '
+            f'peak: slope={max_slope_deg:4.1f}° rough={max_rough:.2f} | '
+            f'outliers: s={self.slope_outliers} r={self.rough_outliers} | '
             f'rates: imu={self.imu_count} odom={self.odom_count}'
         )
         self.imu_count = 0
         self.odom_count = 0
+        # Outlier sayaçlarını sıfırlamıyoruz, kümülatif (debug için kullanışlı)
 
 
 def main(args=None):
