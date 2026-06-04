@@ -1,8 +1,8 @@
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, RegisterEventHandler
+from launch.actions import IncludeLaunchDescription, RegisterEventHandler, DeclareLaunchArgument
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, PathJoinSubstitution
+from launch.substitutions import Command, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
@@ -12,7 +12,16 @@ def generate_launch_description():
     pkg_rover_description = FindPackageShare('rover_description')
     pkg_ros_gz_sim = FindPackageShare('ros_gz_sim')
     pkg_rover_bringup = FindPackageShare('rover_bringup')
-    world_file = PathJoinSubstitution([pkg_rover_bringup, 'worlds', 'sensor_world.sdf'])    
+
+    # World secimi: default sensor_world.sdf, override -> world:=terrain_world.sdf
+    declare_world = DeclareLaunchArgument(
+        'world',
+        default_value='sensor_world.sdf',
+        description='worlds/ icindeki SDF dosya adi (orn: terrain_world.sdf)'
+    )
+    world_file = PathJoinSubstitution([
+        pkg_rover_bringup, 'worlds', LaunchConfiguration('world')
+    ])
     xacro_file = PathJoinSubstitution([
         pkg_rover_description, 'urdf', 'rover.urdf.xacro'
     ])
@@ -158,6 +167,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        declare_world,
         gz_sim,
         robot_state_publisher,
         spawn,

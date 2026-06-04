@@ -86,7 +86,7 @@
                 <collision name="collision">
                     <geometry>
                         <mesh>
-                            <uri>file:///home/c4n/rover_ws/src/rover_bringup/worlds/terrain.obj</uri>
+                            <uri>file:///home/c4nth/rover_ws/src/rover_bringup/worlds/terrain.obj</uri>
                             <scale>1 1 1</scale>
                         </mesh>
                     </geometry>
@@ -94,7 +94,7 @@
                 <visual name="visual">
                     <geometry>
                         <mesh>
-                            <uri>file:///home/c4n/rover_ws/src/rover_bringup/worlds/terrain.obj</uri>
+                            <uri>file:///home/c4nth/rover_ws/src/rover_bringup/worlds/terrain.obj</uri>
                             <scale>1 1 1</scale>
                         </mesh>
                     </geometry>
