@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <title>Rover Kontrol Paneli</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <style>
+      :root {
+        --bg: #0b0e14;
+        --panel: #12161f;
+        --panel2: #0e1219;
+        --border: #222a38;
+        --border2: #2c374a;
+        --txt: #e6edf3;
+        --muted: #8b98a9;
+        --dim: #5b6776;
+        --accent: #2f81f7;
+        --ok: #3fb950;
+        --warn: #d29922;
+        --bad: #f85149;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          system-ui,
+          Segoe UI,
+          Roboto,
+          sans-serif;
+        background: var(--bg);
+        color: var(--txt);
+        font-size: 14px;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        padding: 12px 18px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        z-index: 500;
+      }
+      header .title {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        margin-right: 6px;
+      }
+      header .spacer {
+        flex: 1;
+      }
+      .pill {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 10px;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .pill .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--dim);
+      }
+      input.f {
+        background: var(--panel2);
+        border: 1px solid var(--border);
+        color: var(--txt);
+        padding: 7px 9px;
+        border-radius: 7px;
+        font-size: 13px;
+        font-family: var(--mono);
+      }
+      input.f.url {
+        width: 210px;
+      }
+      button {
+        background: var(--accent);
+        color: #fff;
+        border: 0;
+        border-radius: 7px;
+        padding: 8px 13px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      button.ghost {
+        background: #1c2330;
+        color: var(--txt);
+        border: 1px solid var(--border2);
+      }
+      button:active {
+        transform: translateY(1px);
+      }
+      main {
+        padding: 16px;
+        max-width: 1280px;
+        margin: 0 auto;
+        display: grid;
+        gap: 14px;
+        grid-template-columns: 1.5fr 1fr;
+      }
+      .tele {
+        grid-column: 1/-1;
+        display: grid;
+        gap: 14px;
+        grid-template-columns: 1fr 1fr 1.3fr;
+      }
+      @media (max-width: 900px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+        .tele {
+          grid-template-columns: 1fr;
+        }
+        input.f.url {
+          width: 150px;
+        }
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 15px;
+      }
+      .card h2 {
+        margin: 0 0 12px;
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .sdot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--dim);
+        margin-left: auto;
+      }
+      .cam {
+        width: 100%;
+        aspect-ratio: 16/10;
+        background: #000;
+        border-radius: 9px;
+        object-fit: contain;
+        display: block;
+        border: 1px solid var(--border);
+      }
+      .pad {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 9px;
+        max-width: 240px;
+        margin: 0 auto 6px;
+      }
+      .pad button {
+        aspect-ratio: 1;
+        font-size: 22px;
+        background: #1c2330;
+        border: 1px solid var(--border2);
+        color: var(--txt);
+        touch-action: none;
+        user-select: none;
+        border-radius: 10px;
+      }
+      .pad button:active,
+      .pad button.act {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      .pad .stop {
+        background: #3a1d1d;
+        border-color: #5a2a2a;
+      }
+      .pad .stop:active {
+        background: var(--bad);
+      }
+      .empty {
+        visibility: hidden;
+      }
+      .estop {
+        width: 100%;
+        margin-top: 10px;
+        background: var(--bad);
+        font-size: 15px;
+        font-weight: 600;
+        padding: 11px;
+        border-radius: 9px;
+      }
+      .slider {
+        margin-top: 14px;
+      }
+      .slider .lab {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 5px;
+      }
+      .slider .lab b {
+        color: var(--txt);
+        font-family: var(--mono);
+        font-weight: 500;
+      }
+      .slider input[type="range"] {
+        width: 100%;
+        accent-color: var(--accent);
+      }
+      .cmd {
+        display: flex;
+        gap: 18px;
+        margin-top: 14px;
+        flex-wrap: wrap;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .cmd b {
+        color: var(--txt);
+        font-family: var(--mono);
+        font-weight: 500;
+      }
+      .hint {
+        font-size: 12px;
+        color: var(--dim);
+        margin-top: 12px;
+        line-height: 1.5;
+      }
+      .rows {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 6px 14px;
+        font-family: var(--mono);
+      }
+      .rows .k {
+        color: var(--muted);
+        font-family: system-ui;
+      }
+      .rows .v {
+        text-align: right;
+      }
+      .val.good {
+        color: var(--ok);
+      }
+      .val.bad {
+        color: var(--bad);
+      }
+      .imuwrap {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+      }
+      .imucol {
+        flex: 1;
+      }
+      .adi {
+        width: 118px;
+        height: 118px;
+        flex-shrink: 0;
+      }
+      #map {
+        height: 100%;
+        min-height: 240px;
+        border-radius: 9px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+      }
+      .maprow {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      body:not(.connected) .pad,
+      body:not(.connected) .estop {
+        opacity: 0.45;
+        pointer-events: none;
+      }
+      .leaflet-container {
+        background: #0e1219;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="title">Rover Kontrol</span>
+      <span class="pill"
+        ><span class="dot" id="cdot"></span
+        ><span id="cstat">Bagli degil</span></span
+      >
+      <span class="spacer"></span>
+      <input class="f url" id="rosUrl" value="ws://tac-desktop.local:9090" />
+      <button id="connBtn">Baglan</button>
+      <input
+        class="f url"
+        id="camUrl"
+        value="http://tac-desktop.local:8080/stream?topic=/image_raw&type=mjpeg"
+      />
+      <button class="ghost" id="camBtn">Kamera</button>
+    </header>
+    <main>
+      <div class="card">
+        <h2>Kamera</h2>
+        <img class="cam" id="cam" alt="kamera" />
+      </div>
+      <div class="card">
+        <h2>Kontrol</h2>
+        <div class="pad">
+          <div class="empty"></div>
+          <button data-dir="fwd">&#9650;</button>
+          <div class="empty"></div>
+          <button data-dir="left">&#9664;</button
+          ><button class="stop" data-dir="stop">&#9632;</button
+          ><button data-dir="right">&#9654;</button>
+          <div class="empty"></div>
+          <button data-dir="back">&#9660;</button>
+          <div class="empty"></div>
+        </div>
+        <div class="slider">
+          <div class="lab">
+            <span>Lineer hiz</span><b><span id="linVal">0.30</span> m/s</b>
+          </div>
+          <input
+            type="range"
+            id="linSpeed"
+            min="0.05"
+            max="0.6"
+            step="0.05"
+            value="0.3"
+          />
+        </div>
+        <div class="slider">
+          <div class="lab">
+            <span>Acisal hiz</span><b><span id="angVal">1.0</span> rad/s</b>
+          </div>
+          <input
+            type="range"
+            id="angSpeed"
+            min="0.2"
+            max="1.5"
+            step="0.1"
+            value="1.0"
+          />
+        </div>
+        <div class="cmd">
+          <span>cmd_vel: v=<b id="cmdV">0.00</b> w=<b id="cmdW">0.00</b></span>
+          <span>PWM sol/sag: <b id="pwmL">0</b>/<b id="pwmR">0</b></span>
+        </div>
+        <button class="estop" id="estop">ACIL DUR</button>
+        <div class="hint">
+          Tuslar: W/A/S/D veya ok tuslari. Basili tutunca hareket, birakinca
+          durur. W+A ileri+donus.
+        </div>
+      </div>
+      <div class="tele">
+        <div class="card">
+          <h2>IMU <span class="sdot" id="imuDot"></span></h2>
+          <div class="imuwrap">
+            <div class="imucol rows">
+              <span class="k">accel x</span><span class="v" id="ax">0.00</span>
+              <span class="k">accel y</span><span class="v" id="ay">0.00</span>
+              <span class="k">accel z</span><span class="v" id="az">0.00</span>
+              <span class="k">gyro x</span><span class="v" id="gx">0.00</span>
+              <span class="k">gyro y</span><span class="v" id="gy">0.00</span>
+              <span class="k">gyro z</span><span class="v" id="gz">0.00</span>
+            </div>
+            <svg class="adi" viewBox="0 0 120 120">
+              <defs>
+                <clipPath id="adiC"><circle cx="60" cy="60" r="52" /></clipPath>
+              </defs>
+              <g clip-path="url(#adiC)">
+                <g id="adiH">
+                  <rect
+                    x="-80"
+                    y="-110"
+                    width="280"
+                    height="170"
+                    fill="#2f6db0"
+                  />
+                  <rect
+                    x="-80"
+                    y="60"
+                    width="280"
+                    height="170"
+                    fill="#7a5226"
+                  />
+                  <line
+                    x1="-80"
+                    y1="60"
+                    x2="200"
+                    y2="60"
+                    stroke="#fff"
+                    stroke-width="1.5"
+                  />
+                </g>
+              </g>
+              <circle
+                cx="60"
+                cy="60"
+                r="52"
+                fill="none"
+                stroke="var(--border2)"
+                stroke-width="2"
+              />
+              <path
+                d="M34 60 H50 M70 60 H86"
+                stroke="var(--accent)"
+                stroke-width="2.5"
+                fill="none"
+                stroke-linecap="round"
+              />
+              <circle cx="60" cy="60" r="2.5" fill="var(--accent)" />
+            </svg>
+          </div>
+          <div class="rows" style="margin-top: 10px">
+            <span class="k">pitch</span><span class="v" id="pitch">0&deg;</span>
+            <span class="k">roll</span><span class="v" id="roll">0&deg;</span>
+          </div>
+        </div>
+        <div class="card">
+          <h2>GPS <span class="sdot" id="gpsDot"></span></h2>
+          <div class="rows">
+            <span class="k">durum</span
+            ><span class="v val bad" id="fix">Fix yok</span>
+            <span class="k">enlem</span><span class="v" id="lat">-</span>
+            <span class="k">boylam</span><span class="v" id="lon">-</span>
+            <span class="k">yukseklik</span><span class="v" id="alt">-</span>
+            <span class="k">uydu</span><span class="v" id="sats">-</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="maprow">
+            <h2 style="margin: 0">Harita</h2>
+            <button
+              class="ghost"
+              id="recenter"
+              style="padding: 5px 10px; font-size: 12px"
+            >
+              Merkeze al
+            </button>
+          </div>
+          <div id="map"></div>
+        </div>
+      </div>
+    </main>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const LIN_GAIN = 300,
+        ANG_GAIN = 120,
+        SPEED_MAX = 180;
+      let ros = null,
+        cmdVel = null,
+        wantConn = false,
+        reT = null;
+      let curV = 0,
+        curW = 0,
+        driveT = null;
+      const held = new Set();
+      let imuTs = 0,
+        gpsTs = 0;
+      function setConn(s) {
+        const m = {
+          idle: ["var(--dim)", "Bagli degil"],
+          conn: ["var(--warn)", "Baglaniyor"],
+          ok: ["var(--ok)", "Bagli"],
+          err: ["var(--bad)", "Hata"],
+          closed: ["var(--bad)", "Koptu, deneniyor"],
+        };
+        $("cdot").style.background = m[s][0];
+        $("cstat").textContent = m[s][1];
+        document.body.classList.toggle("connected", s === "ok");
+        $("connBtn").textContent = wantConn ? "Kes" : "Baglan";
+      }
+      function connect() {
+        wantConn = true;
+        cleanup();
+        setConn("conn");
+        ros = new ROSLIB.Ros({ url: $("rosUrl").value.trim() });
+        ros.on("connection", () => {
+          setConn("ok");
+          subscribeAll();
+          $("cam").src = $("camUrl").value.trim();
+        });
+        ros.on("error", () => setConn("err"));
+        ros.on("close", () => {
+          stopDrive();
+          if (wantConn) {
+            setConn("closed");
+            reconnect();
+          } else setConn("idle");
+        });
+      }
+      function disconnect() {
+        wantConn = false;
+        if (reT) {
+          clearTimeout(reT);
+          reT = null;
+        }
+        cleanup();
+        setConn("idle");
+      }
+      function reconnect() {
+        if (reT) return;
+        reT = setTimeout(() => {
+          reT = null;
+          if (wantConn) connect();
+        }, 2000);
+      }
+      function cleanup() {
+        if (ros) {
+          try {
+            ros.close();
+          } catch (e) {}
+        }
+        ros = null;
+        cmdVel = null;
+      }
+      function subscribeAll() {
+        cmdVel = new ROSLIB.Topic({
+          ros,
+          name: "/cmd_vel",
+          messageType: "geometry_msgs/msg/Twist",
+        });
+        new ROSLIB.Topic({
+          ros,
+          name: "/imu/data_raw",
+          messageType: "sensor_msgs/msg/Imu",
+          throttle_rate: 80,
+          queue_length: 1,
+        }).subscribe(onImu);
+        new ROSLIB.Topic({
+          ros,
+          name: "/gps/fix",
+          messageType: "sensor_msgs/msg/NavSatFix",
+          throttle_rate: 300,
+          queue_length: 1,
+        }).subscribe(onGps);
+        new ROSLIB.Topic({
+          ros,
+          name: "/gps/satellites",
+          messageType: "std_msgs/msg/Int32",
+          throttle_rate: 500,
+          queue_length: 1,
+        }).subscribe((m) => {
+          $("sats").textContent = m.data;
+        });
+      }
+      function publishTwist(v, w) {
+        if (cmdVel)
+          cmdVel.publish(
+            new ROSLIB.Message({
+              linear: { x: v, y: 0, z: 0 },
+              angular: { x: 0, y: 0, z: w },
+            }),
+          );
+        $("cmdV").textContent = v.toFixed(2);
+        $("cmdW").textContent = w.toFixed(2);
+        let l = Math.round(LIN_GAIN * v - ANG_GAIN * w),
+          r = Math.round(LIN_GAIN * v + ANG_GAIN * w);
+        l = Math.max(-SPEED_MAX, Math.min(SPEED_MAX, l));
+        r = Math.max(-SPEED_MAX, Math.min(SPEED_MAX, r));
+        $("pwmL").textContent = l;
+        $("pwmR").textContent = r;
+      }
+      function updateMotion() {
+        const lin = parseFloat($("linSpeed").value),
+          ang = parseFloat($("angSpeed").value);
+        let v = 0,
+          w = 0;
+        if (held.has("fwd")) v += lin;
+        if (held.has("back")) v -= lin;
+        if (held.has("left")) w += ang;
+        if (held.has("right")) w -= ang;
+        curV = v;
+        curW = w;
+        if (v !== 0 || w !== 0) {
+          if (!driveT)
+            driveT = setInterval(() => publishTwist(curV, curW), 100);
+          publishTwist(curV, curW);
+        } else stopDrive();
+      }
+      function stopDrive() {
+        if (driveT) {
+          clearInterval(driveT);
+          driveT = null;
+        }
+        curV = 0;
+        curW = 0;
+        held.clear();
+        document
+          .querySelectorAll(".pad button")
+          .forEach((b) => b.classList.remove("act"));
+        publishTwist(0, 0);
+        publishTwist(0, 0);
+      }
+      function onImu(m) {
+        imuTs = Date.now();
+        const a = m.linear_acceleration,
+          g = m.angular_velocity;
+        $("ax").textContent = a.x.toFixed(2);
+        $("ay").textContent = a.y.toFixed(2);
+        $("az").textContent = a.z.toFixed(2);
+        $("gx").textContent = g.x.toFixed(2);
+        $("gy").textContent = g.y.toFixed(2);
+        $("gz").textContent = g.z.toFixed(2);
+        const pitch = (Math.atan2(-a.x, Math.hypot(a.y, a.z)) * 180) / Math.PI;
+        const roll = (Math.atan2(a.y, a.z) * 180) / Math.PI;
+        $("pitch").textContent = pitch.toFixed(0) + "\u00b0";
+        $("roll").textContent = roll.toFixed(0) + "\u00b0";
+        $("adiH").setAttribute(
+          "transform",
+          "rotate(" +
+            (-roll).toFixed(1) +
+            " 60 60) translate(0 " +
+            (pitch * 1.1).toFixed(1) +
+            ")",
+        );
+      }
+      let map,
+        marker,
+        trail,
+        pts = [];
+      function initMap() {
+        map = L.map("map", {
+          zoomControl: true,
+          attributionControl: false,
+        }).setView([41.015, 28.979], 13);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+        }).addTo(map);
+        setTimeout(() => map.invalidateSize(), 200);
+      }
+      function onGps(m) {
+        gpsTs = Date.now();
+        const lat = m.latitude,
+          lon = m.longitude;
+        const st = m.status ? m.status.status : -1;
+        $("lat").textContent = isFinite(lat) ? lat.toFixed(6) : "-";
+        $("lon").textContent = isFinite(lon) ? lon.toFixed(6) : "-";
+        $("alt").textContent =
+          m.altitude != null && isFinite(m.altitude)
+            ? m.altitude.toFixed(1) + " m"
+            : "-";
+        const ft =
+          { "-1": "Fix yok", 0: "Fix var", 1: "SBAS fix", 2: "GBAS fix" }[
+            String(st)
+          ] || "?";
+        const fx = $("fix");
+        fx.textContent = ft;
+        fx.className = "v val " + (st >= 0 ? "good" : "bad");
+        if (
+          st >= 0 &&
+          isFinite(lat) &&
+          isFinite(lon) &&
+          (lat !== 0 || lon !== 0)
+        ) {
+          if (!marker) {
+            marker = L.circleMarker([lat, lon], {
+              radius: 7,
+              color: "#2f81f7",
+              fillColor: "#2f81f7",
+              fillOpacity: 0.9,
+            }).addTo(map);
+            map.setView([lat, lon], 18);
+          } else marker.setLatLng([lat, lon]);
+          pts.push([lat, lon]);
+          if (pts.length > 400) pts.shift();
+          if (!trail)
+            trail = L.polyline(pts, {
+              color: "#2f81f7",
+              weight: 3,
+              opacity: 0.7,
+            }).addTo(map);
+          else trail.setLatLngs(pts);
+        }
+      }
+      setInterval(() => {
+        $("imuDot").style.background =
+          imuTs && Date.now() - imuTs < 1500 ? "var(--ok)" : "var(--dim)";
+        $("gpsDot").style.background =
+          gpsTs && Date.now() - gpsTs < 3000 ? "var(--ok)" : "var(--dim)";
+      }, 800);
+      document.querySelectorAll(".pad button").forEach((b) => {
+        const dir = b.dataset.dir;
+        const press = (e) => {
+          e.preventDefault();
+          if (dir === "stop") {
+            stopDrive();
+            return;
+          }
+          held.add(dir);
+          b.classList.add("act");
+          updateMotion();
+        };
+        const rel = (e) => {
+          e.preventDefault();
+          if (dir === "stop") return;
+          held.delete(dir);
+          b.classList.remove("act");
+          updateMotion();
+        };
+        b.addEventListener("pointerdown", press);
+        b.addEventListener("pointerup", rel);
+        b.addEventListener("pointerleave", rel);
+        b.addEventListener("pointercancel", rel);
+      });
+      const km = {
+        w: "fwd",
+        arrowup: "fwd",
+        s: "back",
+        arrowdown: "back",
+        a: "left",
+        arrowleft: "left",
+        d: "right",
+        arrowright: "right",
+      };
+      window.addEventListener("keydown", (e) => {
+        if (
+          document.activeElement &&
+          /INPUT|TEXTAREA/.test(document.activeElement.tagName)
+        )
+          return;
+        const k = km[e.key.toLowerCase()];
+        if (k) {
+          e.preventDefault();
+          if (!held.has(k)) {
+            held.add(k);
+            updateMotion();
+          }
+        }
+      });
+      window.addEventListener("keyup", (e) => {
+        const k = km[e.key.toLowerCase()];
+        if (k) {
+          e.preventDefault();
+          held.delete(k);
+          updateMotion();
+        }
+      });
+      $("linSpeed").addEventListener("input", (e) => {
+        $("linVal").textContent = parseFloat(e.target.value).toFixed(2);
+        if (curV || curW) updateMotion();
+      });
+      $("angSpeed").addEventListener("input", (e) => {
+        $("angVal").textContent = parseFloat(e.target.value).toFixed(1);
+        if (curV || curW) updateMotion();
+      });
+      $("estop").addEventListener("click", stopDrive);
+      $("camBtn").addEventListener("click", () => {
+        $("cam").src = $("camUrl").value.trim() + "&t=" + Date.now();
+      });
+      $("connBtn").addEventListener("click", () => {
+        wantConn ? disconnect() : connect();
+      });
+      $("recenter").addEventListener("click", () => {
+        if (marker) map.setView(marker.getLatLng(), 18);
+      });
+      window.addEventListener("blur", stopDrive);
+      initMap();
+    </script>
+  </body>
+</html>
